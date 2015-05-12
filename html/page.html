@@ -9,6 +9,9 @@
       <input type="text" id="name" placeholder="your name" />
       <input type="text" id="input" disabled="disabled" />
     </section>
+    <select id="users">
+      <option value="">all</option>
+    </select>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       window.onload = function() {
@@ -29,15 +32,21 @@
             }
             return color;
           }
+          var users = document.querySelector("#users"),
+            selectedUser = null,
+            id = null;
           var socket = io.connect('http://localhost:3000'),
             chat = document.querySelector("#chat"),
             input = document.querySelector("#input"),
             name = document.querySelector("#name"),
             color = getRandomColor();
           var send = function(message) {
-            var username = name.value === '' ? '' : '<strong>' + name.value + ': </strong>';
+            var username = name.value == '' ? '' : '<strong>' + name.value + ': </strong>';
             socket.emit('send', {
-              message: '<span style="color:' + color + '">' + username + message + '</span>'
+              message: '<span style="color:' + color + '">' + username + message + '</span>',
+              username: name.value,
+              toUser: users.value,
+              fromUser: id
             });
           }
           var display = function(message) {
@@ -50,12 +59,27 @@
               input.value = "";
             }
           });
+          addEventListener(users, "change", function(e) {
+            selectedUser = users.value;
+          });
           socket.on('welcome', function (data) {
+            id = data.id;
             display(data.message);
             input.removeAttribute("disabled");
             input.focus();
           }).on('receive', function(data) {
             display(data.message);
+          }).on('users', function(data) {
+            var html = '<option value="">all</option>';
+            for(var i=0; i<data.length; i++) {
+              var user = data[i];
+              if(id != user.id) {
+                var username = user.name ? user.name : 'user' + (i+1);
+                var selected = user.id === selectedUser ? ' selected="selected"': '';
+                html += '<option value="' + user.id + '"' + selected + '>' + username + '</otpion>';
+              }
+            }
+            users.innerHTML = html;
           });
         })();
       }
